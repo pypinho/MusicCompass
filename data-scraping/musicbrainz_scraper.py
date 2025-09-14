@@ -58,7 +58,7 @@ def main():
     limit = 100
     offset = 0
     total_artists = 1 # Initialize to enter the loop
-    MAX_BANDS = 1000 # Set maximum number of bands to scrape
+    MAX_BANDS = 26000 # Set maximum number of bands to scrape
 
     # Initial broad search for "metal" tag
     # We will refine filtering in process_artists_data
@@ -82,7 +82,7 @@ def main():
     # Truncate to MAX_BANDS if more were collected
     all_metal_bands = all_metal_bands[:MAX_BANDS]
 
-    output_file = "/home/pypinho/MusicCompass/data-scraping/musicbrainz_metal_bands_1000.json"
+    output_file = "/home/pypinho/MusicCompass/data-scraping/musicbrainz_metal_bands_26000.json"
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(all_metal_bands, f, ensure_ascii=False, indent=4)
     print(f"Successfully scraped {len(all_metal_bands)} metal bands from MusicBrainz and saved to {output_file}")

@@ -4,9 +4,14 @@ const { driver } = require('../../config/db');
 const getGenres = async (req, res) => {
   const session = driver.session();
   try {
-    const result = await session.run('MATCH (n:Genre) RETURN n');
-    const genres = result.records.map(record => record.get('n').properties);
-    res.json(genres);
+    const result = await session.run(
+      'MATCH (g:Genre)<-[:IS_SUBGENRE_OF]-(sg:SubGenre) RETURN g.name AS genre, COLLECT(sg.name) AS subgenres'
+    );
+    const genreHierarchy = result.records.reduce((acc, record) => {
+      acc[record.get('genre')] = { subgenres: record.get('subgenres') };
+      return acc;
+    }, {});
+    res.json(genreHierarchy);
   } catch (error) {
     console.error(error);
     res.status(500).send('Error fetching genres');
@@ -15,22 +20,4 @@ const getGenres = async (req, res) => {
   }
 };
 
-const getGenreById = async (req, res) => {
-  const session = driver.session();
-  const { id } = req.params;
-  try {
-    const result = await session.run('MATCH (n:Genre {id: $id}) RETURN n', { id });
-    if (result.records.length === 0) {
-      return res.status(404).send('Genre not found');
-    }
-    const genre = result.records[0].get('n').properties;
-    res.json(genre);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send('Error fetching genre');
-  } finally {
-    await session.close();
-  }
-};
-
-module.exports = { getGenres, getGenreById };
+module.exports = { getGenres };

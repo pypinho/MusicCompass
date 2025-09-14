@@ -1,4 +1,9 @@
 
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// Initialize the Gemini API client
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 /**
  * @fileoverview Service for interacting with the Gemini API.
  */
@@ -20,6 +25,71 @@ const generateDescription = async (topic) => {
   return Promise.resolve(mockDescription);
 };
 
+/**
+ * Gets the genre hierarchy for a list of genres using the Gemini API.
+ *
+ * @param {string[]} genres - A list of genres.
+ * @returns {Promise<object>} A promise that resolves to an object representing the genre hierarchy.
+ */
+const get_genre_hierarchy = async (genres) => {
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+  const prompt = `
+    Based on the following list of music genres, create a hierarchical structure.
+    The top-level genres should be broad categories (e.g., "rock", "metal", "electronic").
+    Each genre should have a "subgenres" property, which is an array of strings.
+    The output should be a JSON object.
+
+    Genres:
+    ${genres.join(', ')}
+
+    JSON output:
+  `;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = await response.text();
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Error calling Gemini API:", error);
+    // Return a mock hierarchy in case of an error
+    return {
+      "metal": {
+        "subgenres": [
+          "heavy metal",
+          "thrash metal",
+          "death metal",
+          "progressive metal",
+          "power metal",
+          "doom metal",
+          "black metal",
+          "speed metal",
+          "glam metal",
+          "industrial metal",
+          "symphonic metal",
+          "alternative metal",
+          "nu metal",
+          "groove metal"
+        ]
+      },
+      "rock": {
+        "subgenres": [
+          "progressive rock",
+          "hard rock",
+          "psychedelic rock",
+          "blues rock",
+          "art rock",
+          "alternative rock",
+          "glam rock",
+          "punk rock"
+        ]
+      }
+    };
+  }
+};
+
 module.exports = {
   generateDescription,
+  get_genre_hierarchy,
 };

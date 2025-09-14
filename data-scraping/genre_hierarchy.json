@@ -1,0 +1,32 @@
+{
+    "metal": {
+        "subgenres": [
+            "heavy metal",
+            "thrash metal",
+            "death metal",
+            "progressive metal",
+            "power metal",
+            "doom metal",
+            "black metal",
+            "speed metal",
+            "glam metal",
+            "industrial metal",
+            "symphonic metal",
+            "alternative metal",
+            "nu metal",
+            "groove metal"
+        ]
+    },
+    "rock": {
+        "subgenres": [
+            "progressive rock",
+            "hard rock",
+            "psychedelic rock",
+            "blues rock",
+            "art rock",
+            "alternative rock",
+            "glam rock",
+            "punk rock"
+        ]
+    }
+}

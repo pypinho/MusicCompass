@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as d3 from 'd3';
 import useMapData from '../../hooks/useMapData';
@@ -35,12 +36,6 @@ const MusicMap = () => {
 
     const { width, height } = dimensions;
 
-    // Helper to normalize genre names (e.g., "death metal" -> "Death Metal")
-    const normalizeGenre = (name) => {
-        if (typeof name !== 'string' || !name) return 'Uncategorized';
-        return name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
-    };
-
     const svg = d3.select(svgRef.current)
       .attr('width', width)
       .attr('height', height);
@@ -49,107 +44,34 @@ const MusicMap = () => {
 
     const g = svg.append("g");
 
-    const genreParentMap = Object.fromEntries(
-        Object.entries({
-            "Death Metal": "Metal",
-            "Black Metal": "Metal",
-            "Thrash Metal": "Metal",
-            "Heavy Metal": "Metal",
-            "Power Metal": "Metal",
-            "Doom Metal": "Metal",
-            "Gothic Metal": "Metal",
-            "Symphonic Metal": "Metal",
-            "Progressive Metal": "Metal",
-            "Folk Metal": "Metal",
-            "Industrial Metal": "Metal",
-            "Nu Metal": "Metal",
-            "Glam Metal": "Metal",
-            "Speed Metal": "Metal",
-            "Groove Metal": "Metal",
-            "Melodic Death Metal": "Death Metal",
-            "Technical Death Metal": "Death Metal",
-            "Brutal Death Metal": "Death Metal",
-            "Viking Metal": "Folk Metal",
-            "Pagan Metal": "Folk Metal",
-            "Stoner Metal": "Doom Metal",
-            "Sludge Metal": "Doom Metal",
-            "Grindcore": "Hardcore",
-            "Metalcore": "Hardcore",
-            "Deathcore": "Hardcore",
-            "Hardcore": "Metal",
-            "Punk Rock": "Punk",
-            // ... etc
-        }).map(([key, value]) => [normalizeGenre(key), normalizeGenre(value)])
-    );
+    const genreNodes = [];
+    const subGenreNodes = [];
+    const artistNodes = [];
+    const genreLinks = [];
 
-    const genreToGenreLinks = [
-        { source: "Metal", target: "Rock" },
-        { source: "Rock", target: "Pop" },
-        { source: "Punk", target: "Rock" },
-    ].map(link => ({ source: normalizeGenre(link.source), target: normalizeGenre(link.target) }));
-
-    const genreDataMap = new Map();
-
-    // Function to ensure a genre exists in the map
-    const ensureGenre = (genreName) => {
-        const normalizedName = normalizeGenre(genreName);
-        if (!genreDataMap.has(normalizedName)) {
-            genreDataMap.set(normalizedName, { name: normalizedName, type: 'genre', artists: [] });
+    for (const genreName in data.genres) {
+        genreNodes.push({ name: genreName, type: 'genre', genreType: 'main' });
+        for (const subGenreName of data.genres[genreName].subgenres) {
+            subGenreNodes.push({ name: subGenreName, type: 'genre', genreType: 'sub' });
+            genreLinks.push({ source: subGenreName, target: genreName, type: 'subgenre-link' });
         }
-        return genreDataMap.get(normalizedName);
-    };
+    }
 
-    // Pre-populate map with all known genres
-    data.genres.forEach(g => ensureGenre(g.name));
-    Object.keys(genreParentMap).forEach(ensureGenre);
-    Object.values(genreParentMap).forEach(ensureGenre);
-    genreToGenreLinks.forEach(link => {
-        ensureGenre(link.source);
-        ensureGenre(link.target);
-    });
-
-    // Assign genre types (main vs sub)
-    const mainGenres = new Set(Object.values(genreParentMap));
-    genreDataMap.forEach((genre, name) => {
-        genre.genreType = mainGenres.has(name) ? 'main' : 'sub';
-    });
-
-    // Process artists and attach them to the CORRECT, NORMALIZED genre
     data.artists.forEach(artist => {
-        const rawGenre = artist.genres.length > 0 ? artist.genres[0] : 'Uncategorized';
-        const normalizedRawGenre = normalizeGenre(rawGenre);
-        const parentGenreName = genreParentMap[normalizedRawGenre] || normalizedRawGenre;
-        const targetGenre = ensureGenre(parentGenreName);
-        targetGenre.artists.push({ ...artist, type: 'artist', primaryGenre: targetGenre.name });
-    });
-
-    const allGenreNodes = Array.from(genreDataMap.values());
-    const allArtistNodes = allGenreNodes.flatMap(g => g.artists);
-    const allNodes = [...allGenreNodes, ...allArtistNodes];
-
-    allNodes.sort((a, b) => {
-        if (a.type === 'artist' && b.type === 'genre') return 1;
-        if (a.type === 'genre' && b.type === 'artist') return -1;
-        return 0;
-    });
-
-    const allLinks = [];
-    allGenreNodes.forEach(genre => {
-        if (genre.genreType === 'sub') {
-            const parent = genreParentMap[genre.name];
-            if (parent) {
-                allLinks.push({ source: genre.name, target: parent, type: 'subgenre-link' });
+        artistNodes.push({ ...artist, type: 'artist' });
+        artist.subgenres.forEach(subGenreName => {
+            // Check if the subgenre exists before creating a link
+            if (subGenreNodes.find(sg => sg.name === subGenreName)) {
+                genreLinks.push({ source: artist.name, target: subGenreName, type: 'artist-link' });
             }
-        }
+        });
     });
-    allArtistNodes.forEach(artist => {
-        allLinks.push({ source: artist.name, target: artist.primaryGenre, type: 'artist-link' });
-    });
-    allLinks.push(...genreToGenreLinks.map(l => ({...l, type: 'maingenre-link'})));
+
+    const allNodes = [...genreNodes, ...subGenreNodes, ...artistNodes];
 
     const simulation = d3.forceSimulation(allNodes)
-        .force("link", d3.forceLink(allLinks).id(d => d.name)
-            .distance(d => d.type === 'artist-link' ? 40 : (d.type === 'subgenre-link' ? 80 : 200))
+        .force("link", d3.forceLink(genreLinks).id(d => d.name)
+            .distance(d => d.type === 'artist-link' ? 40 : 80)
             .strength(d => d.type === 'artist-link' ? 0.3 : 0.8))
         .force("charge", d3.forceManyBody().strength(-800))
         .force("center", d3.forceCenter(width / 2, height / 2))
@@ -158,7 +80,7 @@ const MusicMap = () => {
     for (let i = 0; i < 300; ++i) { simulation.tick(); }
     simulation.stop();
 
-    const link = g.append("g").attr("stroke", "#999").attr("stroke-opacity", 0.6).selectAll("line").data(allLinks).join("line").attr("stroke-width", d => d.type === 'maingenre-link' ? 2.5 : 1).attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    const link = g.append("g").attr("stroke", "#999").attr("stroke-opacity", 0.6).selectAll("line").data(genreLinks).join("line").attr("stroke-width", d => d.type === 'maingenre-link' ? 2.5 : 1).attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
     const node = g.append("g").selectAll("circle").data(allNodes).join("circle").attr("r", d => d.type === 'genre' ? (d.genreType === 'main' ? 50 : 25) : 10).attr("fill", d => d.type === 'artist' ? 'IndianRed' : (d.genreType === 'main' ? 'SteelBlue' : 'LightSkyBlue')).attr("stroke", '#fff').attr("stroke-width", 1.5).attr('cx', d => d.x).attr('cy', d => d.y).call(drag(simulation)).on("mouseover", (event, d) => setTooltip({ visible: true, x: event.pageX + 10, y: event.pageY + 10, content: d.name })).on("mousemove", (event) => { if (tooltip.visible) { setTooltip(prev => ({ ...prev, x: event.pageX + 10, y: event.pageY + 10 })); } }).on("mouseout", () => setTooltip(prev => ({ ...prev, visible: false })));
     const label = g.append("g").selectAll("text").data(allNodes).join("text").text(d => d.name).attr("class", "label").style("pointer-events", "none").style("font-size", d => d.type === 'genre' ? (d.genreType === 'main' ? '20px' : '12px') : '10px').style("font-weight", d => d.type === 'genre' && d.genreType === 'main' ? 'bold' : 'normal').attr('x', d => d.x + (d.type === 'genre' ? (d.genreType === 'main' ? 55 : 30) : 15)).attr('y', d => d.y + 5);
 
