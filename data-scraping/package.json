@@ -1,0 +1,15 @@
+{
+  "name": "data-scraping",
+  "version": "1.0.0",
+  "description": "",
+  "main": "populate.js",
+  "scripts": {
+    "start": "node populate.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "neo4j-driver": "^5.28.1"
+  }
+}
